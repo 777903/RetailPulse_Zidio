@@ -1,0 +1,197 @@
+"""
+1_Sales_Analytics.py  –  RetailPulse | Blue Glassmorphism Theme
+"""
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+from src.config import SALES_CLEAN_FILE
+from dashboard.styles import (
+    GLOBAL_CSS, SIDEBAR_HTML, SIDEBAR_FOOTER,
+    PLOTLY_LAYOUT, BLUE_SEQ, QUAL_COLORS, BLUE_PRIMARY, ACCENT_CYAN,
+)
+
+st.set_page_config(page_title="Sales Analytics | RetailPulse", page_icon="📈", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+def _read(path):
+    if path.exists():
+        return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    csv = path.with_suffix(".csv")
+    return pd.read_csv(csv) if csv.exists() else pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def load_sales():
+    df = _read(SALES_CLEAN_FILE)
+    if not df.empty and "invoice_date" in df.columns:
+        df["invoice_date"] = pd.to_datetime(df["invoice_date"])
+    return df
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown(SIDEBAR_HTML, unsafe_allow_html=True)
+    st.markdown("### 🔍 Filters")
+
+df_all = load_sales()
+
+if df_all.empty:
+    st.warning("No sales data found. Run `python main.py` first.")
+    st.stop()
+
+# Sample for large datasets (dashboard interactivity)
+df_display = df_all if len(df_all) < 5_000_000 else df_all.sample(2_000_000, random_state=42)
+
+with st.sidebar:
+    min_date = df_display["invoice_date"].min().date()
+    max_date = df_display["invoice_date"].max().date()
+    date_range = st.date_input("Date Range", value=(min_date, max_date),
+                               min_value=min_date, max_value=max_date)
+    categories = ["All"] + sorted(df_display["product_category"].dropna().unique().tolist()) \
+        if "product_category" in df_display.columns else ["All"]
+    selected_cat = st.selectbox("Product Category", categories)
+    channels = ["All"] + sorted(df_display["sales_channel"].dropna().unique().tolist()) \
+        if "sales_channel" in df_display.columns else ["All"]
+    selected_channel = st.selectbox("Sales Channel", channels)
+    st.markdown(SIDEBAR_FOOTER, unsafe_allow_html=True)
+
+# ── Page Header ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="margin-bottom:18px;">
+  <div style="font-size:1.9rem;font-weight:800;color:#E8F4FF;letter-spacing:-0.5px;">
+    📈 Sales Analytics
+  </div>
+  <div style="font-size:0.88rem;color:#7AA8CC;margin-top:4px;">
+    Explore revenue trends, top products, category performance, and channel breakdown.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Apply Filters ─────────────────────────────────────────────────────────────
+df = df_display.copy()
+if len(date_range) == 2:
+    df = df[(df["invoice_date"].dt.date >= date_range[0]) &
+            (df["invoice_date"].dt.date <= date_range[1])]
+if selected_cat != "All" and "product_category" in df.columns:
+    df = df[df["product_category"] == selected_cat]
+if selected_channel != "All" and "sales_channel" in df.columns:
+    df = df[df["sales_channel"] == selected_channel]
+
+# ── KPI Cards ─────────────────────────────────────────────────────────────────
+k1, k2, k3, k4 = st.columns(4)
+kpis = [
+    (k1, "💰", "Total Revenue",    f"₹{df['total_amount'].sum()/1e9:.2f}B",  BLUE_PRIMARY),
+    (k2, "📦", "Total Orders",     f"{df['invoice_id'].nunique()/1e6:.2f}M" if 'invoice_id' in df.columns else f"{len(df):,}", ACCENT_CYAN),
+    (k3, "👥", "Unique Customers", f"{df['customer_id'].nunique()/1e6:.2f}M", BLUE_PRIMARY),
+    (k4, "🛍️","Avg Order Value",  f"₹{df['total_amount'].mean():,.0f}",      ACCENT_CYAN),
+]
+for col, icon, label, val, color in kpis:
+    col.markdown(f"""
+    <div class="kpi-card" style="border-top-color:{color};">
+      <div class="kpi-icon">{icon}</div>
+      <div class="kpi-label">{label}</div>
+      <div class="kpi-value" style="color:{color};">{val}</div>
+    </div>""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ── Revenue Trend ─────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📈 Revenue Trend</div>', unsafe_allow_html=True)
+granularity = st.radio("Granularity", ["Daily", "Weekly", "Monthly"], horizontal=True, index=2)
+freq_map = {"Daily": "D", "Weekly": "W", "Monthly": "ME"}
+trend = (
+    df.set_index("invoice_date")["total_amount"]
+    .resample(freq_map[granularity]).sum().reset_index()
+)
+fig_trend = go.Figure()
+fig_trend.add_trace(go.Scatter(
+    x=trend["invoice_date"], y=trend["total_amount"],
+    mode="lines", fill="tozeroy",
+    line=dict(color=BLUE_PRIMARY, width=2.5),
+    fillcolor="rgba(0,191,255,0.08)",
+))
+fig_trend.update_layout(**PLOTLY_LAYOUT, height=280,
+                        xaxis_title="Date", yaxis_title="Revenue (₹)")
+st.plotly_chart(fig_trend, use_container_width=True)
+
+# ── Category & Channel ────────────────────────────────────────────────────────
+col_a, col_b = st.columns(2)
+
+with col_a:
+    st.markdown('<div class="section-header">🗂️ Revenue by Category</div>', unsafe_allow_html=True)
+    if "product_category" in df.columns:
+        cat_df = df.groupby("product_category", as_index=False)["total_amount"].sum().sort_values("total_amount")
+        fig_cat = px.bar(cat_df, x="total_amount", y="product_category", orientation="h",
+                         color="total_amount", color_continuous_scale=BLUE_SEQ,
+                         labels={"total_amount": "Revenue (₹)", "product_category": ""})
+        fig_cat.update_layout(**PLOTLY_LAYOUT, height=320, coloraxis_showscale=False)
+        st.plotly_chart(fig_cat, use_container_width=True)
+
+with col_b:
+    st.markdown('<div class="section-header">📡 Sales Channel Mix</div>', unsafe_allow_html=True)
+    if "sales_channel" in df.columns:
+        ch_df = df.groupby("sales_channel", as_index=False)["total_amount"].sum()
+        fig_ch = px.pie(ch_df, values="total_amount", names="sales_channel",
+                        hole=0.46, color_discrete_sequence=QUAL_COLORS)
+        fig_ch.update_traces(textfont_color="#E8F4FF")
+        fig_ch.update_layout(**PLOTLY_LAYOUT, height=320)
+        st.plotly_chart(fig_ch, use_container_width=True)
+
+# ── Top Products ──────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">🏆 Top 10 Products by Revenue</div>', unsafe_allow_html=True)
+if "product_name" in df.columns:
+    top_prod = (
+        df.groupby("product_name", as_index=False)["total_amount"]
+        .sum().sort_values("total_amount", ascending=False).head(10)
+    )
+    fig_prod = px.bar(top_prod, x="total_amount", y="product_name", orientation="h",
+                      color="total_amount", color_continuous_scale=BLUE_SEQ,
+                      labels={"total_amount": "Revenue (₹)", "product_name": ""})
+    fig_prod.update_layout(**PLOTLY_LAYOUT, height=320, coloraxis_showscale=False)
+    st.plotly_chart(fig_prod, use_container_width=True)
+
+# ── Heatmap ───────────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">🌡️ Sales Heatmap (Month × Day-of-Week)</div>', unsafe_allow_html=True)
+heat = df.copy()
+heat["month"]       = heat["invoice_date"].dt.month_name().str[:3]
+heat["day_of_week"] = heat["invoice_date"].dt.day_name().str[:3]
+heat_pivot = heat.groupby(["month", "day_of_week"])["total_amount"].sum().reset_index()
+month_order = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+day_order   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+heat_pivot["month"]       = pd.Categorical(heat_pivot["month"],       categories=month_order, ordered=True)
+heat_pivot["day_of_week"] = pd.Categorical(heat_pivot["day_of_week"], categories=day_order,   ordered=True)
+heat_pivot = heat_pivot.sort_values(["month", "day_of_week"])
+fig_heat = px.density_heatmap(
+    heat_pivot, x="day_of_week", y="month", z="total_amount",
+    color_continuous_scale=[[0,"#060B18"],[0.5,"#0066CC"],[1,"#00E5FF"]],
+    labels={"day_of_week": "Day", "month": "Month", "total_amount": "Revenue"},
+)
+fig_heat.update_layout(**PLOTLY_LAYOUT, height=340)
+st.plotly_chart(fig_heat, use_container_width=True)
+
+# ── Payment Method (if available) ─────────────────────────────────────────────
+if "payment_method" in df.columns:
+    st.markdown('<div class="section-header">💳 Payment Method Breakdown</div>', unsafe_allow_html=True)
+    pay_df = df.groupby("payment_method", as_index=False)["total_amount"].sum().sort_values("total_amount", ascending=False)
+    fig_pay = px.bar(pay_df, x="payment_method", y="total_amount",
+                     color="total_amount", color_continuous_scale=BLUE_SEQ,
+                     labels={"payment_method": "Payment Method", "total_amount": "Revenue (₹)"})
+    fig_pay.update_layout(**PLOTLY_LAYOUT, height=280, coloraxis_showscale=False)
+    st.plotly_chart(fig_pay, use_container_width=True)
+
+# ── Raw Data ──────────────────────────────────────────────────────────────────
+with st.expander("📋 Raw Data Sample (first 500 rows)"):
+    st.dataframe(df.head(500), use_container_width=True)
+    st.download_button(
+        "⬇️ Download Filtered Sales CSV",
+        df.head(100_000).to_csv(index=False).encode(),
+        "sales_filtered.csv", "text/csv",
+    )
+
+st.markdown('<div class="rp-footer">RetailPulse v1.0 · Sales Analytics · Satya Sourav Das · Zidio Development</div>', unsafe_allow_html=True)

@@ -1,0 +1,161 @@
+"""
+6_Model_Performance.py  –  RetailPulse | Blue Glassmorphism Theme
+"""
+import sys, json
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+from src.config import METRICS_DIR, FORECASTING_DIR, CHURN_DIR, SEGMENTATION_DIR
+from dashboard.styles import (
+    GLOBAL_CSS, SIDEBAR_HTML, SIDEBAR_FOOTER,
+    PLOTLY_LAYOUT, BLUE_SEQ, QUAL_COLORS,
+    BLUE_PRIMARY, ACCENT_CYAN, ALERT_RED, ALERT_ORANGE, ALERT_GREEN,
+)
+
+st.set_page_config(page_title="Model Performance | RetailPulse", page_icon="🎯", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+@st.cache_data(ttl=300)
+def load_all_metrics():
+    data = {}
+    fp = FORECASTING_DIR / "forecast_metrics.json"
+    if fp.exists():
+        with open(fp) as f:
+            data["forecasting"] = json.load(f)
+    cp = CHURN_DIR / "churn_metrics.json"
+    if cp.exists():
+        with open(cp) as f:
+            data["churn"] = json.load(f)
+    sp = SEGMENTATION_DIR / "segment_summary.csv"
+    if sp.exists():
+        data["segmentation"] = pd.read_csv(sp)
+    sc = METRICS_DIR / "model_performance_summary.csv"
+    if sc.exists():
+        data["summary"] = pd.read_csv(sc)
+    return data
+
+with st.sidebar:
+    st.markdown(SIDEBAR_HTML, unsafe_allow_html=True)
+    st.markdown(SIDEBAR_FOOTER, unsafe_allow_html=True)
+
+metrics = load_all_metrics()
+
+st.markdown("""
+<div style="margin-bottom:18px;">
+  <div style="font-size:1.9rem;font-weight:800;color:#E8F4FF;letter-spacing:-0.5px;">🎯 Model Performance</div>
+  <div style="font-size:0.88rem;color:#7AA8CC;margin-top:4px;">
+    Consolidated view of all ML model metrics across forecasting, churn, and segmentation.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+if not metrics:
+    st.warning("No metrics found. Run `python main.py --all` first.")
+    st.stop()
+
+# ── Forecasting Performance ───────────────────────────────────────────────────
+st.markdown('<div class="section-header">📈 Demand Forecasting – MAPE by Category</div>', unsafe_allow_html=True)
+if "forecasting" in metrics:
+    fore_rows = [
+        {"Category": cat, "Model": m.get("model","N/A"), "MAPE (%)": m.get("mape",0),
+         "MAE": m.get("mae",0), "RMSE": m.get("rmse",0)}
+        for cat, m in metrics["forecasting"].items()
+    ]
+    fore_df = pd.DataFrame(fore_rows).sort_values("MAPE (%)")
+    avg_mape = fore_df["MAPE (%)"].mean()
+    color = ALERT_GREEN if avg_mape <= 12 else ALERT_RED
+
+    col_t, col_g = st.columns([1, 2])
+    with col_t:
+        st.dataframe(fore_df, use_container_width=True)
+        st.markdown(f"""
+        <div style="text-align:center;margin-top:10px;">
+          <div class="kpi-card" style="border-top-color:{color};display:inline-block;padding:12px 24px;">
+            <div class="kpi-label">Avg MAPE</div>
+            <div class="kpi-value" style="color:{color};font-size:1.8rem;">{avg_mape:.2f}%</div>
+            <div style="font-size:0.75rem;color:#7AA8CC;">Target ≤ 12%</div>
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+    with col_g:
+        fig_mape = px.bar(fore_df, x="Category", y="MAPE (%)",
+                          color="MAPE (%)",
+                          color_continuous_scale=[[0, ALERT_GREEN], [0.5, BLUE_PRIMARY], [1, ALERT_RED]],
+                          text="MAPE (%)")
+        fig_mape.add_hline(y=12, line_dash="dash", line_color="#E8F4FF", opacity=0.7,
+                           annotation_text="Target ≤12%", annotation_font_color="#E8F4FF")
+        fig_mape.update_traces(texttemplate="%{text:.1f}%", textposition="outside",
+                               textfont_color="#E8F4FF")
+        fig_mape.update_layout(**PLOTLY_LAYOUT, height=320, coloraxis_showscale=False,
+                               xaxis_tickangle=-30)
+        st.plotly_chart(fig_mape, use_container_width=True)
+
+# ── Churn Performance ─────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">⚠️ Churn Prediction – Model Comparison</div>', unsafe_allow_html=True)
+if "churn" in metrics:
+    churn_rows = [
+        {"Model": name, "Accuracy": m.get("accuracy",0), "Precision": m.get("precision",0),
+         "Recall": m.get("recall",0), "F1": m.get("f1",0), "AUC-ROC": m.get("roc_auc",0)}
+        for name, m in metrics["churn"].items()
+    ]
+    churn_df = pd.DataFrame(churn_rows).sort_values("AUC-ROC", ascending=False)
+    best_auc = churn_df["AUC-ROC"].max()
+    auc_color = ALERT_GREEN if best_auc >= 0.88 else ALERT_ORANGE
+
+    col_ct, col_cg = st.columns([1, 2])
+    with col_ct:
+        st.dataframe(churn_df, use_container_width=True)
+        st.markdown(f"""
+        <div style="text-align:center;margin-top:10px;">
+          <div class="kpi-card" style="border-top-color:{auc_color};display:inline-block;padding:12px 24px;">
+            <div class="kpi-label">Best AUC-ROC</div>
+            <div class="kpi-value" style="color:{auc_color};font-size:1.8rem;">{best_auc:.4f}</div>
+            <div style="font-size:0.75rem;color:#7AA8CC;">Target ≥ 0.88</div>
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+    with col_cg:
+        melted = churn_df.melt(id_vars="Model",
+                               value_vars=["Accuracy","Precision","Recall","F1","AUC-ROC"],
+                               var_name="Metric", value_name="Score")
+        fig_churn = px.bar(melted, x="Metric", y="Score", color="Model",
+                           barmode="group", color_discrete_sequence=QUAL_COLORS)
+        fig_churn.add_hline(y=0.88, line_dash="dash", line_color=ALERT_GREEN, opacity=0.7,
+                            annotation_text="AUC target 0.88", annotation_font_color="#E8F4FF")
+        fig_churn.update_layout(**PLOTLY_LAYOUT, height=320)
+        st.plotly_chart(fig_churn, use_container_width=True)
+
+# ── Segmentation ──────────────────────────────────────────────────────────────
+if "segmentation" in metrics and isinstance(metrics["segmentation"], pd.DataFrame):
+    st.markdown('<div class="section-header">👥 Customer Segmentation – Cluster Summary</div>', unsafe_allow_html=True)
+    st.dataframe(metrics["segmentation"], use_container_width=True)
+
+# ── Business Impact ───────────────────────────────────────────────────────────
+st.markdown("---")
+st.markdown('<div class="section-header">💼 Projected Business Impact</div>', unsafe_allow_html=True)
+impact = [
+    ("📉", "Stockout Reduction",   "30–50%", "Driven by 30-day demand forecasts & automated reorder alerts", ALERT_GREEN),
+    ("💰", "Revenue Uplift",        "15–25%", "Targeted marketing to Champion & Loyal segments",              BLUE_PRIMARY),
+    ("👥", "Churn Reduction",       "20–35%", "Proactive campaigns for High-Risk customers",                   ALERT_ORANGE),
+    ("📦", "Inventory Efficiency",  "25–40%", "EOQ-based quantities reduce overstock & understock",            ACCENT_CYAN),
+    ("⚡", "Decision Speed",        "5×",     "Automated ML pipeline replaces manual spreadsheet analysis",   BLUE_PRIMARY),
+]
+im_cols = st.columns(len(impact))
+for col, (icon, label, value, detail, color) in zip(im_cols, impact):
+    col.markdown(f"""
+    <div class="kpi-card" style="border-top-color:{color};text-align:center;padding:20px 14px;">
+      <div style="font-size:1.6rem;">{icon}</div>
+      <div class="kpi-label" style="margin-top:6px;">{label}</div>
+      <div class="kpi-value" style="color:{color};font-size:2rem;">{value}</div>
+      <div style="font-size:0.75rem;color:#7AA8CC;margin-top:6px;line-height:1.5;">{detail}</div>
+    </div>""", unsafe_allow_html=True)
+
+st.markdown('<div class="rp-footer">RetailPulse v1.0 · Model Performance · Zidio Development</div>', unsafe_allow_html=True)

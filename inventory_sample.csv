@@ -1,0 +1,150 @@
+"""
+4_Churn_Prediction.py  –  RetailPulse | Blue Glassmorphism Theme
+"""
+import sys, json
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+from src.config import CHURN_OUTPUT_FILE, CHURN_DIR
+from dashboard.styles import (
+    GLOBAL_CSS, SIDEBAR_HTML, SIDEBAR_FOOTER,
+    PLOTLY_LAYOUT, BLUE_SEQ, QUAL_COLORS,
+    BLUE_PRIMARY, ACCENT_CYAN, ALERT_RED, ALERT_ORANGE, ALERT_GREEN,
+)
+
+st.set_page_config(page_title="Churn Prediction | RetailPulse", page_icon="⚠️", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+def _read(path):
+    if path.exists():
+        return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    csv = path.with_suffix(".csv")
+    return pd.read_csv(csv) if csv.exists() else pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def load_churn():
+    return _read(CHURN_OUTPUT_FILE)
+
+@st.cache_data(ttl=300)
+def load_metrics():
+    mp = CHURN_DIR / "churn_metrics.json"
+    if mp.exists():
+        with open(mp) as f:
+            return json.load(f)
+    return {}
+
+@st.cache_data(ttl=300)
+def load_fi():
+    fp = CHURN_DIR / "feature_importance.csv"
+    return pd.read_csv(fp) if fp.exists() else pd.DataFrame()
+
+with st.sidebar:
+    st.markdown(SIDEBAR_HTML, unsafe_allow_html=True)
+    st.markdown(SIDEBAR_FOOTER, unsafe_allow_html=True)
+
+churn   = load_churn()
+metrics = load_metrics()
+fi      = load_fi()
+
+st.markdown("""
+<div style="margin-bottom:18px;">
+  <div style="font-size:1.9rem;font-weight:800;color:#E8F4FF;letter-spacing:-0.5px;">⚠️ Churn Prediction</div>
+  <div style="font-size:0.88rem;color:#7AA8CC;margin-top:4px;">
+    Identify customers at risk of churning and understand the key drivers with XGBoost.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+if churn.empty:
+    st.warning("No churn data found. Run `python main.py --train-churn` first.")
+    st.stop()
+
+# ── KPI Cards ─────────────────────────────────────────────────────────────────
+churn_rate  = churn["is_churned"].mean() if "is_churned" in churn.columns else 0
+high_risk   = int((churn["churn_risk"] == "High").sum())   if "churn_risk" in churn.columns else 0
+medium_risk = int((churn["churn_risk"] == "Medium").sum()) if "churn_risk" in churn.columns else 0
+low_risk    = int((churn["churn_risk"] == "Low").sum())    if "churn_risk" in churn.columns else 0
+
+k1, k2, k3, k4 = st.columns(4)
+for col, icon, label, val, color, neg in [
+    (k1, "📉", "Churn Rate",    f"{churn_rate:.1%}",  ALERT_RED,    True),
+    (k2, "🔴", "High Risk",     f"{high_risk:,}",      ALERT_RED,    True),
+    (k3, "🟡", "Medium Risk",   f"{medium_risk:,}",    ALERT_ORANGE, True),
+    (k4, "🟢", "Low Risk",      f"{low_risk:,}",       ALERT_GREEN,  False),
+]:
+    col.markdown(f"""
+    <div class="kpi-card" style="border-top-color:{color};">
+      <div class="kpi-icon">{icon}</div>
+      <div class="kpi-label">{label}</div>
+      <div class="kpi-value" style="color:{color};">{val}</div>
+    </div>""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ── Risk Distribution ─────────────────────────────────────────────────────────
+col_a, col_b = st.columns(2)
+
+with col_a:
+    st.markdown('<div class="section-header">📊 Churn Risk Distribution</div>', unsafe_allow_html=True)
+    if "churn_risk" in churn.columns:
+        risk_counts = churn["churn_risk"].value_counts().reset_index()
+        risk_counts.columns = ["Risk", "Count"]
+        color_map = {"Low": ALERT_GREEN, "Medium": ALERT_ORANGE, "High": ALERT_RED}
+        fig_risk = px.bar(risk_counts, x="Risk", y="Count", color="Risk",
+                          color_discrete_map=color_map, text="Count")
+        fig_risk.update_traces(textposition="outside", textfont_color="#E8F4FF")
+        fig_risk.update_layout(**PLOTLY_LAYOUT, height=300, showlegend=False)
+        st.plotly_chart(fig_risk, use_container_width=True)
+
+with col_b:
+    st.markdown('<div class="section-header">📈 Churn Probability Distribution</div>', unsafe_allow_html=True)
+    if "churn_probability" in churn.columns:
+        fig_hist = px.histogram(churn, x="churn_probability", nbins=40,
+                                color_discrete_sequence=[BLUE_PRIMARY],
+                                labels={"churn_probability": "Churn Probability"})
+        fig_hist.update_layout(**PLOTLY_LAYOUT, height=300)
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+# ── Feature Importance ────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">🔍 Top Churn Drivers (Feature Importance)</div>', unsafe_allow_html=True)
+if not fi.empty and "feature" in fi.columns and "importance" in fi.columns:
+    fi_top = fi.head(12).sort_values("importance")
+    fig_fi = px.bar(fi_top, x="importance", y="feature", orientation="h",
+                    color="importance",
+                    color_continuous_scale=[[0, "#0066CC"], [0.5, BLUE_PRIMARY], [1, "#00E5FF"]],
+                    labels={"importance": "Importance Score", "feature": ""})
+    fig_fi.update_layout(**PLOTLY_LAYOUT, height=360, coloraxis_showscale=False)
+    st.plotly_chart(fig_fi, use_container_width=True)
+
+# ── Model Performance ─────────────────────────────────────────────────────────
+if metrics:
+    st.markdown('<div class="section-header">🎯 Model Performance Comparison</div>', unsafe_allow_html=True)
+    metric_rows = [
+        {"Model": name, "Accuracy": m.get("accuracy","N/A"), "Precision": m.get("precision","N/A"),
+         "Recall": m.get("recall","N/A"), "F1 Score": m.get("f1","N/A"), "AUC-ROC": m.get("roc_auc","N/A")}
+        for name, m in metrics.items()
+    ]
+    perf_df = pd.DataFrame(metric_rows)
+    st.dataframe(perf_df, use_container_width=True)
+
+# ── High-Risk Table ───────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">🚨 High-Risk Customers</div>', unsafe_allow_html=True)
+if "churn_risk" in churn.columns:
+    high_risk_df = churn[churn["churn_risk"] == "High"]
+    if "churn_probability" in churn.columns:
+        high_risk_df = high_risk_df.sort_values("churn_probability", ascending=False)
+    st.dataframe(high_risk_df.head(100).reset_index(drop=True), use_container_width=True)
+    st.download_button(
+        "⬇️ Download High-Risk Customer List",
+        high_risk_df.head(100_000).to_csv(index=False).encode(),
+        "high_risk_customers.csv", "text/csv",
+    )
+
+st.markdown('<div class="rp-footer">RetailPulse v1.0 · Churn Prediction · Zidio Development</div>', unsafe_allow_html=True)

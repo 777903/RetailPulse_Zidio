@@ -1,0 +1,151 @@
+"""
+2_Demand_Forecasting.py  –  RetailPulse | Blue Glassmorphism Theme
+"""
+import sys, json
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+import streamlit as st
+
+from src.config import FORECAST_OUTPUT_FILE, FORECASTING_DIR
+from dashboard.styles import (
+    GLOBAL_CSS, SIDEBAR_HTML, SIDEBAR_FOOTER,
+    PLOTLY_LAYOUT, BLUE_SEQ, QUAL_COLORS,
+    BLUE_PRIMARY, ACCENT_CYAN, ALERT_GREEN, ALERT_RED,
+)
+
+st.set_page_config(page_title="Demand Forecasting | RetailPulse", page_icon="🔮", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+def _read(path):
+    if path.exists():
+        return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    csv = path.with_suffix(".csv")
+    return pd.read_csv(csv) if csv.exists() else pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def load_forecast():
+    df = _read(FORECAST_OUTPUT_FILE)
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"])
+    return df
+
+@st.cache_data(ttl=300)
+def load_metrics():
+    mp = FORECASTING_DIR / "forecast_metrics.json"
+    if mp.exists():
+        with open(mp) as f:
+            return json.load(f)
+    return {}
+
+with st.sidebar:
+    st.markdown(SIDEBAR_HTML, unsafe_allow_html=True)
+    st.markdown("### 🔍 Filters")
+
+forecast = load_forecast()
+metrics  = load_metrics()
+
+st.markdown("""
+<div style="margin-bottom:18px;">
+  <div style="font-size:1.9rem;font-weight:800;color:#E8F4FF;letter-spacing:-0.5px;">🔮 Demand Forecasting</div>
+  <div style="font-size:0.88rem;color:#7AA8CC;margin-top:4px;">
+    30-day demand forecast per product category using Prophet / SARIMA / Moving Average.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+if forecast.empty:
+    st.warning("No forecast data found. Run `python main.py --train-forecasting` first.")
+    st.stop()
+
+with st.sidebar:
+    categories   = sorted(forecast["product_category"].unique().tolist())
+    selected_cat = st.selectbox("Product Category", categories)
+    st.markdown(SIDEBAR_FOOTER, unsafe_allow_html=True)
+
+df_cat = forecast[forecast["product_category"] == selected_cat].copy()
+hist   = df_cat[df_cat["type"] == "historical"]
+fore   = df_cat[df_cat["type"] == "forecast"]
+
+# ── Metrics strip ─────────────────────────────────────────────────────────────
+if selected_cat in metrics:
+    m = metrics[selected_cat]
+    k1, k2, k3, k4 = st.columns(4)
+    for col, icon, label, val, color in [
+        (k1, "🤖", "Model",  m.get("model", "N/A"),               BLUE_PRIMARY),
+        (k2, "📉", "MAPE",   f"{m.get('mape','N/A')}%",           ACCENT_CYAN),
+        (k3, "📏", "MAE",    f"{m.get('mae',0):.1f} units",        BLUE_PRIMARY),
+        (k4, "📐", "RMSE",   f"{m.get('rmse',0):.1f} units",       ACCENT_CYAN),
+    ]:
+        col.markdown(f"""
+        <div class="kpi-card" style="border-top-color:{color};">
+          <div class="kpi-icon">{icon}</div>
+          <div class="kpi-label">{label}</div>
+          <div class="kpi-value" style="color:{color};font-size:1.5rem;">{val}</div>
+        </div>""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ── Forecast Chart ────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📈 Historical vs 30-Day Forecast</div>', unsafe_allow_html=True)
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=hist["date"], y=hist["quantity"],
+    name="Historical", mode="lines",
+    line=dict(color=BLUE_PRIMARY, width=2.2),
+    fill="tozeroy", fillcolor="rgba(0,191,255,0.07)",
+))
+fig.add_trace(go.Scatter(
+    x=fore["date"], y=fore["quantity"],
+    name="Forecast (30-day)", mode="lines",
+    line=dict(color=ALERT_GREEN, width=2.5, dash="dot"),
+))
+if not hist.empty and not fore.empty:
+    split_date = hist["date"].max()
+    fig.add_vline(x=split_date, line_dash="dash", line_color=ALERT_RED, opacity=0.6,
+                  annotation_text="Forecast Start", annotation_font_color="#E8F4FF")
+fig.update_layout(
+    **PLOTLY_LAYOUT, height=320,
+    xaxis_title="Date", yaxis_title="Demand (Units)",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# ── MAPE Comparison ───────────────────────────────────────────────────────────
+if metrics:
+    st.markdown('<div class="section-header">📊 MAPE Comparison Across Categories</div>', unsafe_allow_html=True)
+    mape_df = pd.DataFrame([
+        {"Category": k, "MAPE (%)": v.get("mape", 0), "Model": v.get("model", "N/A")}
+        for k, v in metrics.items()
+    ]).sort_values("MAPE (%)")
+    fig_mape = px.bar(
+        mape_df, x="Category", y="MAPE (%)", color="MAPE (%)",
+        color_continuous_scale=[[0, ALERT_GREEN], [0.5, BLUE_PRIMARY], [1, ALERT_RED]],
+        text="MAPE (%)",
+    )
+    fig_mape.add_hline(y=12, line_dash="dash", line_color=ALERT_RED,
+                       annotation_text="Target ≤12%", annotation_font_color="#E8F4FF")
+    fig_mape.update_traces(texttemplate="%{text:.1f}%", textposition="outside",
+                           textfont_color="#E8F4FF")
+    fig_mape.update_layout(**PLOTLY_LAYOUT, height=300, coloraxis_showscale=False)
+    st.plotly_chart(fig_mape, use_container_width=True)
+
+# ── Forecast Table ────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📋 30-Day Forecast Table</div>', unsafe_allow_html=True)
+if not fore.empty:
+    fore_display = fore[["date", "quantity"]].copy()
+    fore_display.columns = ["Date", "Forecasted Demand (Units)"]
+    fore_display["Date"] = fore_display["Date"].dt.strftime("%Y-%m-%d")
+    st.dataframe(fore_display, use_container_width=True)
+    st.download_button(
+        "⬇️ Download Forecast CSV",
+        fore_display.to_csv(index=False).encode(),
+        f"forecast_{selected_cat.replace(' ','_')}.csv", "text/csv",
+    )
+
+st.markdown('<div class="rp-footer">RetailPulse v1.0 · Demand Forecasting · Zidio Development</div>', unsafe_allow_html=True)

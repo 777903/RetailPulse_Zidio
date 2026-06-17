@@ -1,0 +1,174 @@
+"""
+main.py
+RetailPulse – Full ML Pipeline Orchestrator
+
+Usage examples:
+  python main.py                           # run complete pipeline
+  python main.py --generate-data           # only generate synthetic data
+  python main.py --all                     # full pipeline (alias)
+  python main.py --train-segmentation      # only segmentation
+  python main.py --train-forecasting       # only forecasting
+  python main.py --train-churn             # only churn model
+  python main.py --inventory               # only inventory optimizer
+"""
+import argparse
+import sys
+import time
+from pathlib import Path
+
+# Add project root to PYTHONPATH
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+
+from src.config import ensure_dirs
+from src.utils import get_logger
+
+logger = get_logger("main")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="RetailPulse – AI-Powered Retail Analytics Pipeline",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument("--generate-data",       action="store_true", help="Generate / load raw data")
+    parser.add_argument("--preprocess",          action="store_true", help="Clean and preprocess data")
+    parser.add_argument("--feature-engineering", action="store_true", help="Create ML features")
+    parser.add_argument("--train-segmentation",  action="store_true", help="Train K-Means segmentation")
+    parser.add_argument("--train-forecasting",   action="store_true", help="Train demand forecasting")
+    parser.add_argument("--train-churn",         action="store_true", help="Train churn model")
+    parser.add_argument("--inventory",           action="store_true", help="Run inventory optimizer")
+    parser.add_argument("--evaluate",            action="store_true", help="Compile model metrics report")
+    parser.add_argument("--train-all",           action="store_true", help="Run all training steps")
+    parser.add_argument("--all",                 action="store_true", help="Run complete pipeline")
+    parser.add_argument("--force-generate",      action="store_true", help="Force regenerate synthetic data")
+    return parser.parse_args()
+
+
+def run_pipeline(args):
+    t0 = time.time()
+    ensure_dirs()
+
+    run_all = args.all or args.train_all or not any([
+        args.generate_data, args.preprocess, args.feature_engineering,
+        args.train_segmentation, args.train_forecasting, args.train_churn,
+        args.inventory, args.evaluate,
+    ])
+
+    # ── Step 1: Data Ingestion ─────────────────────────────────────────────
+    if run_all or args.generate_data:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 1: Data Ingestion (100M+ scale — streaming to Parquet)")
+        from src.data_ingestion import load_or_generate_data, save_raw_data
+        sales, customers, inventory = load_or_generate_data(
+            force_generate=args.force_generate
+        )
+        # save_raw_data is a no-op when streaming; only used for small DF runs
+        if sales is not None:
+            save_raw_data(sales, customers, inventory)
+    else:
+        from src.data_ingestion import load_or_generate_data
+        sales, customers, inventory = load_or_generate_data()
+
+    # ── Step 2: Preprocessing ──────────────────────────────────────────────
+    if run_all or args.preprocess:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 2: Data Preprocessing")
+        from src.preprocessing import run_preprocessing
+        sales, customers, inventory = run_preprocessing(sales, customers, inventory, save=True)
+    else:
+        from src.config import SALES_CLEAN_FILE, CUSTOMER_CLEAN_FILE, INVENTORY_CLEAN_FILE
+        from src.utils import load_dataframe
+        import pandas as pd
+        try:
+            sales     = load_dataframe(SALES_CLEAN_FILE)
+            if "invoice_date" in sales.columns:
+                sales["invoice_date"] = pd.to_datetime(sales["invoice_date"])
+            customers = load_dataframe(CUSTOMER_CLEAN_FILE)
+            inventory = load_dataframe(INVENTORY_CLEAN_FILE)
+        except FileNotFoundError:
+            from src.preprocessing import run_preprocessing
+            sales, customers, inventory = run_preprocessing(sales, customers, inventory, save=True)
+
+    # ── Step 3: Feature Engineering ───────────────────────────────────────
+    if run_all or args.feature_engineering:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 3: Feature Engineering")
+        from src.feature_engineering import run_feature_engineering
+        feat = run_feature_engineering(sales, customers, inventory, save=True)
+        customer_feat  = feat["customer_features"]
+        demand_feat    = feat["demand_features"]
+        churn_feat     = feat["churn_features"]
+        inventory_feat = feat["inventory_features"]
+    else:
+        import pandas as pd
+        from src.config import (
+            CUSTOMER_FEATURES_FILE, DEMAND_FEATURES_FILE,
+            CHURN_FEATURES_FILE, INVENTORY_FEATURES_FILE,
+        )
+        from src.feature_engineering import run_feature_engineering
+        try:
+            customer_feat  = pd.read_csv(CUSTOMER_FEATURES_FILE)
+            demand_feat    = pd.read_csv(DEMAND_FEATURES_FILE, parse_dates=["date"])
+            churn_feat     = pd.read_csv(CHURN_FEATURES_FILE)
+            inventory_feat = pd.read_csv(INVENTORY_FEATURES_FILE)
+        except FileNotFoundError:
+            feat = run_feature_engineering(sales, customers, inventory, save=True)
+            customer_feat  = feat["customer_features"]
+            demand_feat    = feat["demand_features"]
+            churn_feat     = feat["churn_features"]
+            inventory_feat = feat["inventory_features"]
+
+    # ── Step 4: Customer Segmentation ─────────────────────────────────────
+    if run_all or args.train_all or args.train_segmentation:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 4: Customer Segmentation")
+        from src.segmentation_model import train_segmentation
+        _, _, _ = train_segmentation(customer_feat, save=True)
+
+    # ── Step 5: Demand Forecasting ────────────────────────────────────────
+    forecast_df = None
+    if run_all or args.train_all or args.train_forecasting:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 5: Demand Forecasting")
+        from src.forecasting_model import run_forecasting
+        forecast_df, _ = run_forecasting(demand_feat, save=True)
+
+    # ── Step 6: Churn Prediction ──────────────────────────────────────────
+    if run_all or args.train_all or args.train_churn:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 6: Churn Prediction")
+        from src.churn_model import train_churn_model
+        _, _, _ = train_churn_model(churn_feat, save=True)
+
+    # ── Step 7: Inventory Optimization ───────────────────────────────────
+    if run_all or args.inventory:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 7: Inventory Optimization")
+        from src.inventory_optimizer import calculate_inventory_recommendations
+        if forecast_df is None:
+            import pandas as pd
+            from src.config import FORECAST_OUTPUT_FILE
+            if FORECAST_OUTPUT_FILE.exists():
+                forecast_df = pd.read_csv(FORECAST_OUTPUT_FILE, parse_dates=["date"])
+        calculate_inventory_recommendations(inventory_feat, forecast_df, save=True)
+
+    # ── Step 8: Model Evaluation Report ───────────────────────────────────
+    if run_all or args.evaluate:
+        logger.info("\n" + "="*60)
+        logger.info("STEP 8: Compiling Model Performance Report")
+        from src.model_evaluation import compile_model_report
+        report = compile_model_report(save=True)
+        if not report.empty:
+            logger.info(f"\n{report.to_string(index=False)}")
+
+    elapsed = time.time() - t0
+    logger.info("\n" + "="*60)
+    logger.info(f"[DONE] Pipeline complete in {elapsed:.1f}s")
+    logger.info("Run the dashboard with: streamlit run dashboard/app.py")
+    logger.info("="*60)
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    run_pipeline(args)

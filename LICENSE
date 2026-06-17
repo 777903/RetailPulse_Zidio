@@ -1,0 +1,59 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# ── Environments ──────────────────────────────────────────────────────────────
+.env
+.venv
+venv/
+env/
+ENV/
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+data/raw/*.csv
+data/processed/*.csv
+data/sample/*.csv
+data/raw/*.parquet
+data/processed/*.parquet
+data/sample/*.parquet
+
+# ── Models ────────────────────────────────────────────────────────────────────
+models/**/*.pkl
+models/**/*.joblib
+models/**/*.h5
+models/**/*.pt
+
+# ── Reports ───────────────────────────────────────────────────────────────────
+reports/figures/*.png
+reports/figures/*.jpg
+reports/drift_reports/*.html
+
+# ── MLflow ────────────────────────────────────────────────────────────────────
+mlruns/
+mlartifacts/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+*.env
+secrets.yaml
+credentials.json

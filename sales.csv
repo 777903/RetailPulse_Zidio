@@ -1,0 +1,165 @@
+"""
+5_Inventory_Optimization.py  –  RetailPulse | Blue Glassmorphism Theme
+"""
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+from src.config import INVENTORY_OUTPUT_FILE
+from dashboard.styles import (
+    GLOBAL_CSS, SIDEBAR_HTML, SIDEBAR_FOOTER,
+    PLOTLY_LAYOUT, BLUE_SEQ, QUAL_COLORS,
+    BLUE_PRIMARY, ACCENT_CYAN, ALERT_RED, ALERT_ORANGE, ALERT_GREEN,
+)
+
+st.set_page_config(page_title="Inventory Optimization | RetailPulse", page_icon="📦", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+ACTION_COLORS = {
+    "Critical – Reorder Now": ALERT_RED,
+    "Reorder Now":             ALERT_ORANGE,
+    "Monitor":                 "#FFD700",
+    "Healthy Stock":           ALERT_GREEN,
+    "Overstock":               BLUE_PRIMARY,
+}
+
+def _read(path):
+    if path.exists():
+        return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    csv = path.with_suffix(".csv")
+    return pd.read_csv(csv) if csv.exists() else pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def load_inventory():
+    return _read(INVENTORY_OUTPUT_FILE)
+
+inv = load_inventory()
+
+with st.sidebar:
+    st.markdown(SIDEBAR_HTML, unsafe_allow_html=True)
+    st.markdown("### 🔍 Filters")
+    if not inv.empty:
+        cats = ["All"] + sorted(inv["product_category"].dropna().unique().tolist()) if "product_category" in inv.columns else ["All"]
+        sel_cat = st.selectbox("Category", cats)
+        actions = ["All"] + sorted(inv["action"].dropna().unique().tolist()) if "action" in inv.columns else ["All"]
+        sel_action = st.selectbox("Action Label", actions)
+    st.markdown(SIDEBAR_FOOTER, unsafe_allow_html=True)
+
+st.markdown("""
+<div style="margin-bottom:18px;">
+  <div style="font-size:1.9rem;font-weight:800;color:#E8F4FF;letter-spacing:-0.5px;">📦 Inventory Optimization</div>
+  <div style="font-size:0.88rem;color:#7AA8CC;margin-top:4px;">
+    EOQ-based reorder recommendations. Safety stock and reorder points derived from demand forecasts.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+if inv.empty:
+    st.warning("No inventory data found. Run `python main.py --inventory` first.")
+    st.stop()
+
+# ── Apply Filters ─────────────────────────────────────────────────────────────
+filtered = inv.copy()
+if sel_cat != "All" and "product_category" in filtered.columns:
+    filtered = filtered[filtered["product_category"] == sel_cat]
+if sel_action != "All" and "action" in filtered.columns:
+    filtered = filtered[filtered["action"] == sel_action]
+
+# ── KPI Cards ─────────────────────────────────────────────────────────────────
+reorder_count = int((inv["action"].isin(["Reorder Now", "Critical – Reorder Now"])).sum()) if "action" in inv.columns else 0
+monitor_count = int((inv["action"] == "Monitor").sum()) if "action" in inv.columns else 0
+overstock_count = int((inv["action"] == "Overstock").sum()) if "action" in inv.columns else 0
+healthy_count = int((inv["action"] == "Healthy Stock").sum()) if "action" in inv.columns else 0
+
+k1, k2, k3, k4, k5 = st.columns(5)
+for col, icon, label, val, color in [
+    (k1, "📦", "Total Products",  f"{len(inv):,}",       BLUE_PRIMARY),
+    (k2, "🔴", "Reorder Now",     f"{reorder_count:,}",  ALERT_RED),
+    (k3, "🟡", "Monitor",         f"{monitor_count:,}",  ALERT_ORANGE),
+    (k4, "🔵", "Overstock",       f"{overstock_count:,}",BLUE_PRIMARY),
+    (k5, "🟢", "Healthy Stock",   f"{healthy_count:,}",  ALERT_GREEN),
+]:
+    col.markdown(f"""
+    <div class="kpi-card" style="border-top-color:{color};">
+      <div class="kpi-icon">{icon}</div>
+      <div class="kpi-label">{label}</div>
+      <div class="kpi-value" style="color:{color};font-size:1.7rem;">{val}</div>
+    </div>""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ── Action Summary + Days of Supply ──────────────────────────────────────────
+col_pie, col_dos = st.columns(2)
+
+with col_pie:
+    st.markdown('<div class="section-header">🍩 Inventory Action Summary</div>', unsafe_allow_html=True)
+    ac_df = inv["action"].value_counts().reset_index()
+    ac_df.columns = ["Action", "Count"]
+    fig_pie = px.pie(ac_df, values="Count", names="Action",
+                     color="Action", color_discrete_map=ACTION_COLORS, hole=0.44)
+    fig_pie.update_traces(textfont_color="#E8F4FF")
+    fig_pie.update_layout(**PLOTLY_LAYOUT, height=300)
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+with col_dos:
+    st.markdown('<div class="section-header">📅 Days of Supply by Category</div>', unsafe_allow_html=True)
+    if "days_of_supply" in inv.columns and "product_category" in inv.columns:
+        dos_df = inv.groupby("product_category", as_index=False)["days_of_supply"].mean().sort_values("days_of_supply")
+        fig_dos = px.bar(dos_df, x="days_of_supply", y="product_category", orientation="h",
+                         color="days_of_supply",
+                         color_continuous_scale=[[0, ALERT_RED], [0.5, ALERT_ORANGE], [1, ALERT_GREEN]],
+                         labels={"days_of_supply": "Avg Days of Supply", "product_category": ""})
+        fig_dos.add_vline(x=30, line_dash="dash", line_color="#E8F4FF", opacity=0.5,
+                          annotation_text="30-day target", annotation_font_color="#E8F4FF")
+        fig_dos.update_layout(**PLOTLY_LAYOUT, height=300, coloraxis_showscale=False)
+        st.plotly_chart(fig_dos, use_container_width=True)
+
+# ── Stock vs Reorder Point ────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📊 Current Stock vs Reorder Point (Critical Products)</div>', unsafe_allow_html=True)
+if "current_stock" in inv.columns and "reorder_point" in inv.columns:
+    critical = inv[inv["action"].isin(["Reorder Now", "Critical – Reorder Now"])].head(20)
+    if not critical.empty:
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            name="Current Stock", x=critical["product_name"], y=critical["current_stock"],
+            marker_color=BLUE_PRIMARY, opacity=0.85,
+        ))
+        fig_bar.add_trace(go.Bar(
+            name="Reorder Point", x=critical["product_name"], y=critical["reorder_point"],
+            marker_color=ALERT_RED, opacity=0.85,
+        ))
+        fig_bar.update_layout(
+            **PLOTLY_LAYOUT, height=340, barmode="group",
+            xaxis_tickangle=-40,
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+    else:
+        st.success("✅ No critical reorder alerts in current filter!")
+
+# ── Recommendations Table ─────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📋 Inventory Recommendations Table</div>', unsafe_allow_html=True)
+display_cols = [c for c in [
+    "product_id", "product_name", "product_category", "current_stock",
+    "avg_daily_demand", "reorder_point", "safety_stock", "reorder_qty",
+    "days_of_supply", "urgency_score", "action",
+] if c in filtered.columns]
+
+sort_col = "urgency_score" if "urgency_score" in filtered.columns else display_cols[0]
+st.dataframe(
+    filtered[display_cols].sort_values(sort_col, ascending=False).reset_index(drop=True),
+    use_container_width=True,
+)
+st.download_button(
+    "⬇️ Download Inventory Recommendations",
+    filtered.head(100_000).to_csv(index=False).encode(),
+    "inventory_recommendations.csv", "text/csv",
+)
+
+st.markdown('<div class="rp-footer">RetailPulse v1.0 · Inventory Optimization · Zidio Development</div>', unsafe_allow_html=True)

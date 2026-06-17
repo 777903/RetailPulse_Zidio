@@ -1,0 +1,201 @@
+customer_id,age,gender,city,signup_date,loyalty_member,preferred_channel
+CUST00001,22,Female,Lucknow,2023-03-07,False,In-Store
+CUST00002,67,Male,Lucknow,2024-07-18,False,Online
+CUST00003,45,Female,Lucknow,2024-04-22,False,Mobile App
+CUST00004,69,Male,Lucknow,2023-11-17,False,Phone
+CUST00005,39,Female,Jaipur,2023-11-13,False,In-Store
+CUST00006,61,Male,Kolkata,2024-09-18,False,Online
+CUST00007,35,Female,Ahmedabad,2023-03-04,True,Online
+CUST00008,41,Male,Bengaluru,2024-05-24,True,Phone
+CUST00009,36,Female,Pune,2023-05-28,False,In-Store
+CUST00010,46,Male,Ahmedabad,2023-03-10,False,Phone
+CUST00011,29,Female,Chennai,2024-01-20,False,Mobile App
+CUST00012,44,Other,Pune,2024-12-13,False,Phone
+CUST00013,61,Male,Chennai,2024-06-21,False,Online
+CUST00014,26,Male,Jaipur,2024-07-09,True,In-Store
+CUST00015,59,Female,Delhi,2024-06-07,False,In-Store
+CUST00016,62,Other,Jaipur,2024-07-27,True,Mobile App
+CUST00017,19,Female,Ahmedabad,2024-01-10,False,In-Store
+CUST00018,53,Male,Bengaluru,2023-04-04,True,Online
+CUST00019,43,Other,Delhi,2024-09-05,False,In-Store
+CUST00020,51,Male,Kolkata,2023-11-25,True,Mobile App
+CUST00021,33,Male,Lucknow,2024-01-01,False,Phone
+CUST00022,29,Female,Chennai,2023-09-28,False,Phone
+CUST00023,32,Female,Bengaluru,2023-05-14,False,In-Store
+CUST00024,25,Male,Lucknow,2024-11-07,True,Online
+CUST00025,39,Female,Pune,2024-07-24,False,In-Store
+CUST00026,63,Male,Chennai,2024-04-15,False,In-Store
+CUST00027,58,Male,Chennai,2023-10-21,False,In-Store
+CUST00028,27,Other,Mumbai,2024-08-23,False,In-Store
+CUST00029,47,Female,Jaipur,2024-02-03,False,Online
+CUST00030,21,Male,Chennai,2023-11-20,True,Online
+CUST00031,21,Female,Jaipur,2023-11-25,False,Phone
+CUST00032,50,Male,Bengaluru,2023-06-15,False,Online
+CUST00033,33,Male,Mumbai,2023-03-09,True,Online
+CUST00034,54,Female,Mumbai,2024-02-09,True,Online
+CUST00035,26,Other,Pune,2024-10-10,False,In-Store
+CUST00036,24,Male,Lucknow,2023-02-16,False,In-Store
+CUST00037,55,Male,Ahmedabad,2024-09-18,True,Phone
+CUST00038,28,Female,Pune,2024-08-27,False,Mobile App
+CUST00039,21,Male,Kolkata,2023-07-22,False,In-Store
+CUST00040,59,Male,Delhi,2024-04-06,False,In-Store
+CUST00041,54,Female,Kolkata,2023-05-01,False,Online
+CUST00042,66,Female,Hyderabad,2024-07-07,True,Online
+CUST00043,49,Male,Delhi,2024-05-26,False,Phone
+CUST00044,42,Male,Bengaluru,2023-09-16,False,Mobile App
+CUST00045,52,Female,Pune,2023-02-19,True,Mobile App
+CUST00046,59,Male,Jaipur,2024-12-09,False,Phone
+CUST00047,50,Male,Hyderabad,2023-11-22,False,In-Store
+CUST00048,34,Female,Pune,2024-10-13,True,Mobile App
+CUST00049,64,Female,Lucknow,2024-05-09,True,In-Store
+CUST00050,54,Female,Delhi,2024-07-22,True,Phone
+CUST00051,63,Male,Hyderabad,2024-07-08,False,Mobile App
+CUST00052,46,Male,Mumbai,2023-05-23,False,In-Store
+CUST00053,41,Male,Delhi,2023-09-23,False,Phone
+CUST00054,61,Female,Jaipur,2023-12-07,False,Phone
+CUST00055,49,Female,Jaipur,2023-12-30,False,Phone
+CUST00056,58,Male,Lucknow,2023-02-01,True,Phone
+CUST00057,64,Female,Pune,2024-02-03,False,Online
+CUST00058,32,Male,Lucknow,2023-04-23,False,In-Store
+CUST00059,28,Female,Ahmedabad,2024-06-26,False,Mobile App
+CUST00060,25,Female,Delhi,2024-05-13,False,In-Store
+CUST00061,49,Male,Chennai,2024-11-04,True,In-Store
+CUST00062,59,Male,Hyderabad,2024-06-27,False,Mobile App
+CUST00063,68,Male,Mumbai,2023-09-25,False,Phone
+CUST00064,19,Male,Delhi,2024-12-07,True,Phone
+CUST00065,18,Female,Lucknow,2023-10-27,True,Phone
+CUST00066,53,Male,Lucknow,2023-08-26,True,Phone
+CUST00067,32,Female,Lucknow,2024-10-23,False,Mobile App
+CUST00068,42,Female,Chennai,2023-09-28,False,Mobile App
+CUST00069,22,Male,Hyderabad,2023-02-25,True,Phone
+CUST00070,21,Male,Lucknow,2023-12-09,False,Online
+CUST00071,45,Male,Delhi,2024-08-03,True,Mobile App
+CUST00072,53,Female,Chennai,2023-05-19,False,Mobile App
+CUST00073,64,Female,Ahmedabad,2023-12-04,False,Phone
+CUST00074,43,Male,Mumbai,2023-04-05,True,Online
+CUST00075,51,Male,Bengaluru,2024-05-16,False,In-Store
+CUST00076,62,Female,Hyderabad,2023-12-14,True,Phone
+CUST00077,40,Male,Lucknow,2023-08-30,True,Online
+CUST00078,28,Male,Lucknow,2023-06-15,True,Phone
+CUST00079,60,Male,Bengaluru,2024-02-17,False,Phone
+CUST00080,18,Male,Jaipur,2024-05-03,False,Phone
+CUST00081,32,Female,Pune,2024-11-17,True,Mobile App
+CUST00082,24,Female,Kolkata,2023-11-16,False,Online
+CUST00083,51,Male,Bengaluru,2023-04-28,False,In-Store
+CUST00084,32,Male,Hyderabad,2024-08-30,False,Phone
+CUST00085,35,Female,Kolkata,2024-04-04,True,Phone
+CUST00086,51,Male,Delhi,2024-05-26,False,In-Store
+CUST00087,33,Other,Chennai,2023-03-12,False,Mobile App
+CUST00088,36,Female,Delhi,2023-08-17,False,Mobile App
+CUST00089,43,Female,Mumbai,2024-07-14,False,Phone
+CUST00090,24,Male,Delhi,2024-08-30,False,In-Store
+CUST00091,66,Female,Ahmedabad,2023-11-14,False,In-Store
+CUST00092,69,Male,Kolkata,2024-08-10,False,Mobile App
+CUST00093,55,Female,Jaipur,2024-09-06,False,In-Store
+CUST00094,23,Female,Pune,2023-10-10,False,Online
+CUST00095,42,Female,Mumbai,2024-10-17,False,Mobile App
+CUST00096,36,Male,Bengaluru,2023-07-30,True,Phone
+CUST00097,26,Female,Hyderabad,2023-06-24,False,In-Store
+CUST00098,63,Female,Lucknow,2024-05-13,False,Mobile App
+CUST00099,39,Male,Kolkata,2024-04-09,False,Mobile App
+CUST00100,51,Female,Chennai,2023-04-13,False,Mobile App
+CUST00101,53,Male,Lucknow,2024-08-30,True,Mobile App
+CUST00102,34,Female,Kolkata,2023-05-26,True,Online
+CUST00103,36,Male,Ahmedabad,2024-08-10,False,Online
+CUST00104,68,Female,Kolkata,2023-01-06,True,In-Store
+CUST00105,60,Male,Chennai,2024-08-04,False,Online
+CUST00106,44,Female,Ahmedabad,2024-07-28,False,In-Store
+CUST00107,45,Female,Hyderabad,2024-07-23,False,Phone
+CUST00108,18,Male,Lucknow,2024-04-30,False,Online
+CUST00109,28,Female,Hyderabad,2023-12-11,False,In-Store
+CUST00110,18,Female,Jaipur,2024-05-29,True,Mobile App
+CUST00111,59,Male,Mumbai,2023-07-22,True,Phone
+CUST00112,66,Male,Kolkata,2024-07-23,False,Mobile App
+CUST00113,26,Female,Chennai,2024-02-10,False,Online
+CUST00114,32,Other,Lucknow,2023-12-02,True,Mobile App
+CUST00115,36,Male,Hyderabad,2024-01-05,False,Mobile App
+CUST00116,60,Female,Chennai,2024-02-20,False,In-Store
+CUST00117,39,Male,Mumbai,2023-01-28,False,Mobile App
+CUST00118,20,Male,Mumbai,2023-04-13,True,Online
+CUST00119,48,Female,Kolkata,2023-06-29,True,Online
+CUST00120,25,Male,Delhi,2023-03-25,False,Mobile App
+CUST00121,51,Female,Hyderabad,2023-11-17,False,Phone
+CUST00122,62,Male,Lucknow,2024-05-02,False,In-Store
+CUST00123,21,Male,Bengaluru,2024-04-22,True,Online
+CUST00124,69,Other,Lucknow,2023-12-10,False,Mobile App
+CUST00125,52,Male,Chennai,2024-09-16,False,Online
+CUST00126,20,Female,Lucknow,2024-02-17,False,Online
+CUST00127,29,Female,Hyderabad,2023-02-27,False,Mobile App
+CUST00128,26,Female,Ahmedabad,2024-07-12,True,In-Store
+CUST00129,63,Other,Delhi,2024-02-24,False,Phone
+CUST00130,55,Other,Pune,2024-04-08,False,Phone
+CUST00131,37,Male,Hyderabad,2024-02-17,False,Mobile App
+CUST00132,45,Female,Jaipur,2024-02-09,True,Mobile App
+CUST00133,36,Male,Chennai,2023-03-08,False,In-Store
+CUST00134,39,Female,Chennai,2024-02-13,False,Online
+CUST00135,51,Female,Pune,2024-08-03,False,Mobile App
+CUST00136,28,Male,Kolkata,2023-08-10,False,Mobile App
+CUST00137,57,Female,Kolkata,2024-03-16,True,Online
+CUST00138,67,Male,Jaipur,2023-01-23,False,Phone
+CUST00139,68,Female,Ahmedabad,2023-09-11,False,In-Store
+CUST00140,26,Male,Mumbai,2023-11-15,False,Online
+CUST00141,39,Male,Lucknow,2024-12-18,False,In-Store
+CUST00142,31,Female,Kolkata,2023-06-06,False,Mobile App
+CUST00143,51,Female,Mumbai,2023-07-21,False,Online
+CUST00144,34,Female,Hyderabad,2023-10-26,False,Phone
+CUST00145,38,Female,Mumbai,2024-12-25,True,Phone
+CUST00146,25,Female,Kolkata,2024-09-14,True,Online
+CUST00147,47,Female,Pune,2023-01-26,False,Mobile App
+CUST00148,45,Female,Lucknow,2023-06-20,False,Phone
+CUST00149,46,Male,Pune,2024-08-22,False,Online
+CUST00150,35,Female,Ahmedabad,2023-02-12,False,Phone
+CUST00151,57,Male,Jaipur,2024-09-16,True,Online
+CUST00152,49,Female,Chennai,2023-07-25,False,Phone
+CUST00153,27,Female,Hyderabad,2024-10-31,False,Online
+CUST00154,37,Female,Pune,2023-08-03,False,Phone
+CUST00155,52,Female,Mumbai,2023-11-14,False,Phone
+CUST00156,24,Female,Kolkata,2024-04-28,False,In-Store
+CUST00157,36,Male,Delhi,2023-04-03,True,Mobile App
+CUST00158,63,Female,Delhi,2024-02-11,False,In-Store
+CUST00159,40,Male,Jaipur,2024-01-04,True,Phone
+CUST00160,44,Male,Chennai,2024-07-26,False,Phone
+CUST00161,53,Male,Kolkata,2024-12-28,True,Online
+CUST00162,34,Female,Delhi,2024-04-29,False,Mobile App
+CUST00163,60,Male,Bengaluru,2023-10-26,False,Online
+CUST00164,18,Female,Chennai,2023-10-24,False,Online
+CUST00165,42,Male,Lucknow,2023-11-02,False,In-Store
+CUST00166,49,Male,Chennai,2024-08-17,False,In-Store
+CUST00167,30,Male,Pune,2023-08-23,True,In-Store
+CUST00168,58,Male,Pune,2023-05-02,False,Mobile App
+CUST00169,22,Female,Delhi,2023-09-02,False,Mobile App
+CUST00170,51,Male,Bengaluru,2023-01-17,True,Mobile App
+CUST00171,50,Male,Kolkata,2023-03-19,True,In-Store
+CUST00172,58,Male,Hyderabad,2023-03-07,False,Phone
+CUST00173,28,Female,Jaipur,2024-07-17,False,Phone
+CUST00174,26,Female,Chennai,2024-06-11,True,In-Store
+CUST00175,48,Male,Chennai,2024-05-23,False,In-Store
+CUST00176,68,Female,Delhi,2023-12-04,True,Mobile App
+CUST00177,58,Male,Ahmedabad,2024-06-07,False,Phone
+CUST00178,28,Female,Ahmedabad,2023-04-28,False,Phone
+CUST00179,39,Female,Chennai,2024-10-19,True,In-Store
+CUST00180,31,Male,Pune,2024-01-01,True,Mobile App
+CUST00181,58,Male,Lucknow,2024-11-15,True,Phone
+CUST00182,44,Male,Chennai,2023-04-22,False,Phone
+CUST00183,40,Male,Mumbai,2023-12-30,False,In-Store
+CUST00184,18,Male,Delhi,2024-05-23,False,Online
+CUST00185,50,Male,Pune,2023-12-28,True,In-Store
+CUST00186,41,Male,Ahmedabad,2023-11-22,True,Phone
+CUST00187,20,Male,Kolkata,2023-05-02,False,Mobile App
+CUST00188,28,Male,Pune,2023-10-06,False,Mobile App
+CUST00189,55,Male,Mumbai,2023-06-24,False,In-Store
+CUST00190,56,Male,Pune,2023-08-09,True,Phone
+CUST00191,43,Female,Pune,2024-05-14,False,Phone
+CUST00192,57,Male,Lucknow,2024-04-05,True,Phone
+CUST00193,56,Male,Hyderabad,2024-03-19,False,Online
+CUST00194,50,Female,Jaipur,2023-09-22,True,In-Store
+CUST00195,28,Male,Bengaluru,2024-12-01,False,Mobile App
+CUST00196,39,Male,Jaipur,2023-03-05,False,Mobile App
+CUST00197,60,Female,Kolkata,2023-09-08,False,Phone
+CUST00198,34,Male,Ahmedabad,2023-03-28,False,Mobile App
+CUST00199,52,Female,Kolkata,2023-09-05,False,Mobile App
+CUST00200,61,Female,Ahmedabad,2024-12-03,True,Phone

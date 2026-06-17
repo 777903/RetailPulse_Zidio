@@ -1,0 +1,128 @@
+"""
+3_Customer_Segmentation.py  –  RetailPulse | Blue Glassmorphism Theme
+"""
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+from src.config import SEGMENTS_OUTPUT_FILE
+from src.segmentation_model import get_segment_interpretations
+from dashboard.styles import (
+    GLOBAL_CSS, SIDEBAR_HTML, SIDEBAR_FOOTER,
+    PLOTLY_LAYOUT, BLUE_SEQ, QUAL_COLORS,
+    BLUE_PRIMARY, ACCENT_CYAN,
+)
+
+st.set_page_config(page_title="Customer Segmentation | RetailPulse", page_icon="👥", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+def _read(path):
+    if path.exists():
+        return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    csv = path.with_suffix(".csv")
+    return pd.read_csv(csv) if csv.exists() else pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def load_segments():
+    return _read(SEGMENTS_OUTPUT_FILE)
+
+df = load_segments()
+interpretations = get_segment_interpretations()
+
+with st.sidebar:
+    st.markdown(SIDEBAR_HTML, unsafe_allow_html=True)
+    st.markdown("### 🔍 Filters")
+    all_segs = sorted(df["segment_name"].unique().tolist()) if "segment_name" in df.columns else []
+    selected_segs = st.multiselect("Segments", all_segs, default=all_segs)
+    st.markdown(SIDEBAR_FOOTER, unsafe_allow_html=True)
+
+st.markdown("""
+<div style="margin-bottom:18px;">
+  <div style="font-size:1.9rem;font-weight:800;color:#E8F4FF;letter-spacing:-0.5px;">👥 Customer Segmentation</div>
+  <div style="font-size:0.88rem;color:#7AA8CC;margin-top:4px;">
+    K-Means clustering on RFM + behavioural features. Each segment is colour-coded and interpreted for business action.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+if df.empty:
+    st.warning("No segmentation data found. Run `python main.py --train-segmentation` first.")
+    st.stop()
+
+seg_df = df[df["segment_name"].isin(selected_segs)] if selected_segs else df
+
+# ── Segment Distribution ──────────────────────────────────────────────────────
+col_pie, col_bar = st.columns(2)
+
+with col_pie:
+    st.markdown('<div class="section-header">🍩 Segment Distribution</div>', unsafe_allow_html=True)
+    counts = seg_df["segment_name"].value_counts().reset_index()
+    counts.columns = ["Segment", "Customers"]
+    fig_pie = px.pie(counts, values="Customers", names="Segment",
+                     hole=0.46, color_discrete_sequence=QUAL_COLORS)
+    fig_pie.update_traces(textfont_color="#E8F4FF")
+    fig_pie.update_layout(**PLOTLY_LAYOUT, height=320)
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+with col_bar:
+    st.markdown('<div class="section-header">💰 Avg Monetary Value by Segment</div>', unsafe_allow_html=True)
+    if "monetary" in seg_df.columns:
+        mon_df = seg_df.groupby("segment_name", as_index=False)["monetary"].mean().sort_values("monetary")
+        fig_mon = px.bar(mon_df, x="monetary", y="segment_name", orientation="h",
+                         color="monetary", color_continuous_scale=BLUE_SEQ,
+                         labels={"monetary": "Avg Revenue (₹)", "segment_name": ""})
+        fig_mon.update_layout(**PLOTLY_LAYOUT, height=320, coloraxis_showscale=False)
+        st.plotly_chart(fig_mon, use_container_width=True)
+
+# ── PCA Scatter ───────────────────────────────────────────────────────────────
+if "pca_x" in seg_df.columns and "pca_y" in seg_df.columns:
+    st.markdown('<div class="section-header">🗺️ Customer Cluster Map (PCA 2-D)</div>', unsafe_allow_html=True)
+    sample = seg_df.sample(min(3000, len(seg_df)), random_state=42)
+    hover_cols = [c for c in ["customer_id", "monetary", "frequency", "recency_days"] if c in seg_df.columns]
+    fig_scatter = px.scatter(
+        sample, x="pca_x", y="pca_y", color="segment_name",
+        hover_data=hover_cols,
+        color_discrete_sequence=QUAL_COLORS, opacity=0.72,
+        labels={"pca_x": "PCA Component 1", "pca_y": "PCA Component 2"},
+    )
+    fig_scatter.update_traces(marker=dict(size=5))
+    fig_scatter.update_layout(**PLOTLY_LAYOUT, height=360)
+    st.plotly_chart(fig_scatter, use_container_width=True)
+
+# ── RFM Profile ───────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📊 RFM Profile by Segment</div>', unsafe_allow_html=True)
+rfm_cols = [c for c in ["recency_days", "frequency", "monetary", "avg_order_value", "clv_estimate"] if c in seg_df.columns]
+if rfm_cols and "segment_name" in seg_df.columns:
+    rfm_profile = seg_df.groupby("segment_name")[rfm_cols].mean().reset_index().round(1)
+    st.dataframe(rfm_profile, use_container_width=True)
+
+# ── Segment Interpretations ───────────────────────────────────────────────────
+st.markdown("---")
+st.markdown('<div class="section-header">🧭 Segment Business Interpretations</div>', unsafe_allow_html=True)
+cols = st.columns(2)
+for i, (seg, info) in enumerate(interpretations.items()):
+    col = cols[i % 2]
+    count = len(seg_df[seg_df["segment_name"] == seg]) if "segment_name" in seg_df.columns else 0
+    col.markdown(f"""
+    <div class="glass-card" style="border-left:3px solid {info['color']}; padding:16px;">
+      <div style="font-size:0.95rem;font-weight:700;color:#E8F4FF;">
+        {seg} <span style="color:{info['color']};font-size:0.80rem;">({count:,} customers)</span>
+      </div>
+      <div style="font-size:0.81rem;color:#7AA8CC;margin-top:5px;">📝 {info['description']}</div>
+      <div style="font-size:0.81rem;color:#00E096;margin-top:5px;">🎯 {info['strategy']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+st.download_button(
+    "⬇️ Download Segmentation Data",
+    seg_df.head(100_000).to_csv(index=False).encode(),
+    "customer_segments.csv", "text/csv",
+)
+st.markdown('<div class="rp-footer">RetailPulse v1.0 · Customer Segmentation · Zidio Development</div>', unsafe_allow_html=True)

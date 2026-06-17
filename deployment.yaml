@@ -1,0 +1,11 @@
+customer_id,age,gender,city,region,signup_date,loyalty_member,preferred_channel,customer_tier,annual_income_band,email_verified,phone_verified,referral_source
+CUST0000000001,34,Male,Mumbai,West,2023-01-15,True,Online,Gold,6-12L,True,True,Organic
+CUST0000000002,28,Female,Delhi,North,2023-02-10,False,In-Store,Silver,3-6L,True,False,Referral
+CUST0000000003,45,Male,Bengaluru,South,2023-03-05,True,Mobile App,Platinum,12-25L,True,True,Ad-Campaign
+CUST0000000004,52,Female,Chennai,South,2023-04-20,False,Online,Bronze,<3L,False,True,Social-Media
+CUST0000000005,23,Other,Pune,West,2023-05-11,True,In-Store,Gold,6-12L,True,True,Organic
+CUST0000000006,38,Male,Kolkata,East,2023-06-18,False,Online,Silver,3-6L,True,False,Referral
+CUST0000000007,41,Female,Hyderabad,South,2023-07-22,True,Mobile App,Platinum,>25L,True,True,Ad-Campaign
+CUST0000000008,30,Male,Ahmedabad,West,2023-08-30,False,In-Store,Bronze,<3L,False,False,Organic
+CUST0000000009,27,Female,Jaipur,North,2023-09-14,True,Online,Silver,6-12L,True,True,Social-Media
+CUST0000000010,55,Male,Lucknow,North,2023-10-01,False,Mobile App,Gold,12-25L,True,True,Organic
